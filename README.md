@@ -34,8 +34,8 @@ O servidor roda na porta `8080` e expõe os seguintes endpoints:
 ## Como executar o projeto (Tutorial)
 Certifique-se de ter o **Java Development Kit (JDK)** instalado na sua máquina.
 ```bash
-javac *.java
-java Servidor
+javac -d bin src/*.java
+java -cp bin Servidor
 ```
 Saida Esperada:
 ```bash
