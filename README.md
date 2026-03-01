@@ -47,4 +47,4 @@ Clientes carregados: 0
 ```
 Após isso, acesse o "banco_frontend".
 
-
+![Ecrã de Login do BancoApp](assets/tela.png)
