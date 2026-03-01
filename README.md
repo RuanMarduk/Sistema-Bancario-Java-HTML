@@ -51,4 +51,4 @@ Após isso, acesse o "banco_frontend".
 
 ### Diagrama UML
 
-![Diagrama de Classes UML](Diagrama%20UML.png)
+![Diagrama de Classes UML](assets/Diagrama%20UML.png)
