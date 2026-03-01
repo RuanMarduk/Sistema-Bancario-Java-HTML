@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BancoApp</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f4f3f0; --surface: #ffffff; --border: #d8d6d0;
+      --text: #1a1917; --muted: #6b6860;
+      --accent: #1a5c38; --accent-light: #e8f2ec;
+      --danger: #b0230e; --danger-light: #fbeae8;
+      --radius: 6px;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Layout ── */
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: var(--text); color: #fff; display: flex; flex-direction: column; flex-shrink: 0; }
+    .sidebar-logo { padding: 24px 20px 20px; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .sidebar-logo .bank-name { font-size: 16px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+    .sidebar-logo .bank-sub { font-size: 11px; color: rgba(255,255,255,.4); margin-top: 2px; font-family: var(--mono); }
+    .user-info { padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .user-info .name { font-size: 13px; font-weight: 500; }
+    .user-info .sub { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,.45); margin-top: 2px; }
+    .nav { flex: 1; padding: 12px 0; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; font-size: 13px; cursor: pointer; transition: background .15s; color: rgba(255,255,255,.7); border-left: 3px solid transparent; }
+    .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+    .nav-item.active { background: rgba(255,255,255,.1); color: #fff; border-left-color: #4caf7d; }
+    .nav-section { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.25); padding: 16px 20px 6px; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,.1); }
+    .btn-logout { font-family: var(--sans); font-size: 12px; color: rgba(255,255,255,.5); background: none; border: 1px solid rgba(255,255,255,.15); border-radius: var(--radius); padding: 7px 12px; cursor: pointer; width: 100%; text-align: left; transition: all .15s; }
+    .btn-logout:hover { color: #fff; border-color: rgba(255,255,255,.4); }
+
+    /* ── Main ── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-title { font-size: 15px; font-weight: 600; }
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    .topbar-time { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+    .content { flex: 1; padding: 28px; overflow-y: auto; }
+
+    /* ── Cards ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+    .card-title { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+    .balance-card { background: var(--accent); color: white; border: none; }
+    .balance-card .card-title { color: rgba(255,255,255,.6); }
+    .balance-value { font-family: var(--mono); font-size: 28px; font-weight: 600; letter-spacing: -.02em; }
+    .balance-sub { font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,.55); margin-top: 6px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* ── Forms ── */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .05em; }
+    .form-group input, .form-group select { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--mono); font-size: 13px; background: var(--bg); color: var(--text); transition: border-color .15s; outline: none; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--accent); background: #fff; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .extra-fields { display: none; }
+
+    /* ── Buttons ── */
+    .btn { font-family: var(--sans); font-size: 13px; font-weight: 500; padding: 9px 18px; border-radius: var(--radius); cursor: pointer; border: none; transition: all .15s; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #165030; }
+    .btn-primary:disabled { background: #999; cursor: not-allowed; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: #8e1a0b; }
+    .btn-danger:disabled { background: #999; cursor: not-allowed; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-full { width: 100%; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    td { padding: 11px 12px; font-size: 13px; border-bottom: 1px solid #f0ede8; font-family: var(--mono); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8f7f4; }
+    .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; font-family: var(--sans); font-weight: 500; }
+    .badge-green { background: var(--accent-light); color: var(--accent); }
+    .badge-red { background: var(--danger-light); color: var(--danger); }
+    .badge-blue { background: #e8eef8; color: #2255a4; }
+    .amount-pos { color: var(--accent); }
+    .amount-neg { color: var(--danger); }
+
+    /* ── Alerts ── */
+    .alert { padding: 11px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 14px; }
+    .alert-success { background: var(--accent-light); color: var(--accent); border: 1px solid #b2d9c0; }
+    .alert-error { background: var(--danger-light); color: var(--danger); border: 1px solid #f0b8b2; }
+
+    /* ── Toast ── */
+    .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--text); color: #fff; border-radius: var(--radius); font-size: 13px; z-index: 9999; opacity: 0; transform: translateY(8px); transition: all .25s; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Spinner ── */
+    .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; margin-right: 6px; vertical-align: middle; }
+    .spinner-dark { border-color: rgba(0,0,0,.15); border-top-color: var(--text); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Server badge ── */
+    .server-badge { display: flex; align-items: center; gap: 5px; font-size: 11px; font-family: var(--mono); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #aaa; flex-shrink: 0; }
+    .dot.online { background: #4caf7d; }
+    .dot.offline { background: var(--danger); }
+
+    /* ── Login ── */
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
+    .login-box { width: 400px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 36px; }
+    .login-logo { text-align: center; margin-bottom: 28px; }
+    .login-logo .bank-icon { width: 48px; height: 48px; background: var(--accent); border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 12px; }
+    .login-logo h1 { font-size: 18px; font-weight: 600; }
+    .login-logo p { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .hint-text { font-size: 11px; color: var(--muted); text-align: center; margin-top: 12px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Quick actions ── */
+    .quick-actions { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; }
+    .quick-btn { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 12px; text-align: center; cursor: pointer; transition: all .15s; }
+    .quick-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .quick-btn .q-icon { font-size: 20px; margin-bottom: 6px; }
+    .quick-btn .q-label { font-size: 12px; font-weight: 500; color: var(--muted); }
+
+    /* ── Screens ── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-title { font-size: 14px; font-weight: 600; }
+    .empty-state { text-align: center; color: var(--muted); font-size: 13px; padding: 32px; font-family: var(--sans); }
+
+    /* ── Info table ── */
+    .info-table td { font-size: 13px; padding: 7px 0; border: none; }
+    .info-table td:first-child { color: var(--muted); padding-right: 20px; font-family: var(--sans); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+
+    @media (max-width: 700px) {
+      .sidebar { display: none; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .quick-actions { grid-template-columns: repeat(2,1fr); }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════ LOGIN ═══════════════════ -->
+<div id="loginScreen" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="bank-icon">🏦</div>
+      <h1>BancoApp</h1>
+      <p>Sistema Bancário</p>
+    </div>
+
+    <!-- Status servidor -->
+    <div style="text-align:center;margin-bottom:18px">
+      <span class="server-badge" style="justify-content:center">
+        <span class="dot" id="loginDot"></span>
+        <span id="loginServerTxt" style="color:var(--muted)">Verificando servidor...</span>
+      </span>
+    </div>
+
+    <!-- Login -->
+    <div id="loginMode">
+      <div class="form-group">
+        <label>Número da Conta</label>
+        <input type="number" id="loginConta" placeholder="Ex: 1001" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="loginSenha" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div id="loginAlert"></div>
+      <button class="btn btn-primary btn-full" id="btnLogin" onclick="doLogin()">Entrar</button>
+      <p class="hint-text">Não tem conta? <a href="#" onclick="switchMode('register')">Cadastrar</a></p>
+    </div>
+
+    <!-- Cadastro -->
+    <div id="registerMode" style="display:none">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px">Criar Conta</div>
+      <div class="form-row">
+        <div class="form-group"><label>Nome</label><input type="text" id="regNome" placeholder="Nome completo"></div>
+        <div class="form-group"><label>CPF</label><input type="text" id="regCPF" placeholder="000.000.000-00" maxlength="14"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Nascimento</label><input type="date" id="regNasc"></div>
+        <div class="form-group"><label>Estado Civil</label>
+          <select id="regEC"><option value="Solteiro">Solteiro(a)</option><option value="Casado">Casado(a)</option><option value="Divorciado">Divorciado(a)</option><option value="Viúvo">Viúvo(a)</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Escolaridade</label>
+          <select id="regEsc"><option value="Fundamental">Fundamental</option><option value="Médio">Médio</option><option value="Superior">Superior</option><option value="Pós-graduação">Pós-graduação</option></select>
+        </div>
+        <div class="form-group"><label>Tipo de Conta</label>
+          <select id="regTipo" onchange="updateExtraFields()"><option value="corrente">Corrente</option><option value="salario">Salário</option><option value="poupanca">Poupança</option></select>
+        </div>
+      </div>
+
+      <!-- Campos extras por tipo -->
+      <div id="extraCorrente" class="extra-fields">
+        <div class="form-group"><label>Limite Cheque Especial (R$)</label><input type="number" id="regLimiteCheque" placeholder="500" min="0"></div>
+      </div>
+      <div id="extraSalario" class="extra-fields">
+        <div class="form-row">
+          <div class="form-group"><label>Limite Saque (R$)</label><input type="number" id="regLimiteSaque" placeholder="1000"></div>
+          <div class="form-group"><label>Limite Transf. (R$)</label><input type="number" id="regLimiteTransf" placeholder="2000"></div>
+        </div>
+      </div>
+      <div id="extraPoupanca" class="extra-fields">
+        <div class="form-group"><label>Rendimento (% a.m.)</label><input type="number" id="regRendimento" placeholder="0.5" step="0.01" min="0"></div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group"><label>Nº da Conta</label><input type="number" id="regNumConta" placeholder="Ex: 1002"></div>
+        <div class="form-group"><label>Depósito Inicial (R$)</label><input type="number" id="regSaldo" placeholder="0,00" min="0" step="0.01"></div>
+      </div>
+      <div class="form-group"><label>Senha</label><input type="password" id="regSenha" placeholder="Mínimo 4 caracteres"></div>
+      <div id="regAlert"></div>
+      <button class="btn btn-primary btn-full" id="btnRegister" onclick="doCadastrar()">Criar Conta</button>
+      <p class="hint-text">Já tem conta? <a href="#" onclick="switchMode('login')">Entrar</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ APP ═══════════════════ -->
+<div id="appScreen" class="app" style="display:none">
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="bank-name">BancoApp</div>
+      <div class="bank-sub">Sistema Bancário</div>
+    </div>
+    <div class="user-info">
+      <div class="name" id="sbName">—</div>
+      <div class="sub" id="sbCPF">—</div>
+      <div class="sub" id="sbConta">—</div>
+    </div>
+    <div class="nav">
+      <div class="nav-section">Principal</div>
+      <div class="nav-item active" data-screen="dashboard">⊞&ensp;Dashboard</div>
+      <div class="nav-item" data-screen="extrato">≡&ensp;Extrato</div>
+      <div class="nav-section">Operações</div>
+      <div class="nav-item" data-screen="deposito">↓&ensp;Depósito</div>
+      <div class="nav-item" data-screen="saque">↑&ensp;Saque</div>
+      <div class="nav-item" data-screen="pagamento">◈&ensp;Pagamento</div>
+      <div class="nav-section">Conta</div>
+      <div class="nav-item" data-screen="perfil">◯&ensp;Meu Perfil</div>
+      <div class="nav-item" data-screen="clientes">▣&ensp;Clientes</div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="doLogout()">↩ Sair</button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title" id="pageTitle">Dashboard</span>
+      <div class="topbar-right">
+        <span class="server-badge">
+          <span class="dot" id="appDot"></span>
+          <span id="appServerTxt" style="color:var(--muted);font-family:var(--mono);font-size:11px">—</span>
+        </span>
+        <span class="topbar-time" id="clock">—</span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── DASHBOARD ── -->
+      <div id="screen-dashboard" class="screen active">
+        <div class="balance-card card">
+          <div class="card-title">Saldo Disponível</div>
+          <div class="balance-value" id="dashSaldo">R$ —</div>
+          <div class="balance-sub" id="dashTipo">—</div>
+        </div>
+        <div class="quick-actions">
+          <div class="quick-btn" onclick="navTo('deposito')"><div class="q-icon">💰</div><div class="q-label">Depositar</div></div>
+          <div class="quick-btn" onclick="navTo('saque')"><div class="q-icon">💸</div><div class="q-label">Sacar</div></div>
+          <div class="quick-btn" onclick="navTo('pagamento')"><div class="q-icon">🧾</div><div class="q-label">Pagar</div></div>
+          <div class="quick-btn" onclick="navTo('extrato')"><div class="q-icon">📋</div><div class="q-label">Extrato</div></div>
+        </div>
+        <div class="card">
+          <div class="section-header">
+            <span class="section-title">Transações Recentes</span>
+            <button class="btn btn-outline btn-sm" onclick="navTo('extrato')">Ver todas</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Canal</th></tr></thead>
+              <tbody id="dashTx"><tr><td colspan="4" class="empty-state">Nenhuma transação ainda.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── EXTRATO ── -->
+      <div id="screen-extrato" class="screen">
+        <div class="card">
+          <div class="section-header">
+            <span class="section-title">Extrato Completo</span>
+            <button class="btn btn-outline btn-sm" onclick="loadTransacoes('extratoTx', 999)">↻ Atualizar</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Canal</th></tr></thead>
+              <tbody id="extratoTx"><tr><td colspan="4" class="empty-state">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── DEPÓSITO ── -->
+      <div id="screen-deposito" class="screen">
+        <div class="card" style="max-width:460px">
+          <div class="section-title" style="margin-bottom:18px">Realizar Depósito</div>
+          <div class="form-group"><label>Valor (R$)</label><input type="number" id="depositoValor" placeholder="0,00" min="0.01" step="0.01"></div>
+          <div id="depositoAlert"></div>
+          <button class="btn btn-primary btn-full" id="btnDeposito" onclick="doDeposito()">Confirmar Depósito</button>
+        </div>
+      </div>
+
+      <!-- ── SAQUE ── -->
+      <div id="screen-saque" class="screen">
+        <div class="card" style="max-width:460px">
+          <div class="section-title" style="margin-bottom:18px">Realizar Saque</div>
+          <div class="form-group"><label>Valor (R$)</label><input type="number" id="saqueValor" placeholder="0,00" min="0.01" step="0.01"></div>
+          <div id="saqueAlert"></div>
+          <button class="btn btn-danger btn-full" id="btnSaque" onclick="doSaque()">Confirmar Saque</button>
+        </div>
+      </div>
+
+      <!-- ── PAGAMENTO ── -->
+      <div id="screen-pagamento" class="screen">
+        <div class="card" style="max-width:460px">
+          <div class="section-title" style="margin-bottom:18px">Pagamento</div>
+          <div class="form-group"><label>Descrição</label><input type="text" id="pagDesc" placeholder="Ex: Conta de luz, mensalidade..."></div>
+          <div class="form-group"><label>Valor (R$)</label><input type="number" id="pagValor" placeholder="0,00" min="0.01" step="0.01"></div>
+          <div id="pagAlert"></div>
+          <button class="btn btn-primary btn-full" id="btnPagamento" onclick="doPagamento()">Confirmar Pagamento</button>
+        </div>
+      </div>
+
+      <!-- ── PERFIL ── -->
+      <div id="screen-perfil" class="screen">
+        <div class="grid-2" style="max-width:680px">
+          <div class="card">
+            <div class="card-title">Dados Pessoais</div>
+            <table class="info-table">
+              <tr><td>Nome</td><td id="pNome">—</td></tr>
+              <tr><td>CPF</td><td id="pCPF">—</td></tr>
+              <tr><td>Tipo de Conta</td><td id="pTipo">—</td></tr>
+              <tr><td>Data de Abertura</td><td id="pAbertura">—</td></tr>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-title">Dados da Conta</div>
+            <table class="info-table">
+              <tr><td>Número</td><td id="pConta">—</td></tr>
+              <tr><td>Saldo Atual</td><td id="pSaldo">—</td></tr>
+              <tr><td>Status</td><td id="pStatus">—</td></tr>
+              <tr><td id="pExtraLbl">—</td><td id="pExtraVal">—</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="card" style="max-width:340px;margin-top:0">
+          <div class="card-title">Alterar Senha</div>
+          <div class="form-group"><label>Senha Atual</label><input type="password" id="senhaAtual" placeholder="••••••"></div>
+          <div class="form-group"><label>Nova Senha</label><input type="password" id="senhaNova" placeholder="Mínimo 4 caracteres"></div>
+          <div id="senhaAlert"></div>
+          <button class="btn btn-outline" id="btnSenha" onclick="doAlterarSenha()">Atualizar Senha</button>
+        </div>
+      </div>
+
+      <!-- ── CLIENTES ── -->
+      <div id="screen-clientes" class="screen">
+        <div class="card">
+          <div class="section-header">
+            <span class="section-title">Clientes Cadastrados</span>
+            <button class="btn btn-outline btn-sm" onclick="loadClientes()">↻ Atualizar</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Nome</th><th>Conta</th><th>Tipo</th></tr></thead>
+              <tbody id="clientesTx"><tr><td colspan="3" class="empty-state">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════
+const API = 'http://localhost:8080/api';
+
+// Sessão em memória (sem localStorage, igual ao backend Java)
+let S = null; // { conta, senha, nome, cpf, saldo, tipo, abertura, status, limiteCheque?, rendimento?, limiteSaque? }
+
+// ═══════════════════════════════════════════
+//  HELPERS GERAIS
+// ═══════════════════════════════════════════
+const R$ = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+function mascaraCPF(v) {
+  return v.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+}
+document.getElementById('regCPF').addEventListener('input', e => { e.target.value = mascaraCPF(e.target.value); });
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function alert$(id, msg, type='error') {
+  document.getElementById(id).innerHTML =
+    `<div class="alert alert-${type === 'success' ? 'success' : 'error'}">${msg}</div>`;
+  if (type === 'success') setTimeout(() => { document.getElementById(id).innerHTML = ''; }, 4000);
+}
+
+function clearAlert(id) { document.getElementById(id).innerHTML = ''; }
+
+function loading(btnId, on, label) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  if (on) {
+    btn.dataset.orig = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span>${label}`;
+  } else {
+    btn.disabled = false;
+    btn.textContent = btn.dataset.orig || btn.textContent;
+  }
+}
+
+// ═══════════════════════════════════════════
+//  API
+// ═══════════════════════════════════════════
+async function POST(ep, body) {
+  const r = await fetch(API + ep, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  return { ok: r.ok, status: r.status, data: await r.json() };
+}
+async function GET(ep, params = {}) {
+  const q = new URLSearchParams(params).toString();
+  const r = await fetch(API + ep + (q ? '?'+q : ''));
+  return { ok: r.ok, status: r.status, data: await r.json() };
+}
+
+// ═══════════════════════════════════════════
+//  STATUS DO SERVIDOR
+// ═══════════════════════════════════════════
+async function checkServer() {
+  try {
+    const r = await fetch(API + '/clientes', { signal: AbortSignal.timeout(2000) });
+    setOnline(r.ok);
+  } catch { setOnline(false); }
+}
+
+function setOnline(on) {
+  ['loginDot','appDot'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'dot ' + (on ? 'online' : 'offline');
+  });
+  const msg = on ? 'Servidor online — localhost:8080' : 'Servidor offline — inicie o Servidor.java';
+  const t1 = document.getElementById('loginServerTxt');
+  const t2 = document.getElementById('appServerTxt');
+  if (t1) t1.textContent = msg;
+  if (t2) t2.textContent = on ? 'Online' : 'Offline';
+}
+
+checkServer();
+setInterval(checkServer, 8000);
+
+// ═══════════════════════════════════════════
+//  MODO LOGIN / CADASTRO
+// ═══════════════════════════════════════════
+function switchMode(mode) {
+  document.getElementById('loginMode').style.display    = mode === 'login' ? 'block' : 'none';
+  document.getElementById('registerMode').style.display = mode === 'register' ? 'block' : 'none';
+  clearAlert('loginAlert'); clearAlert('regAlert');
+}
+
+function updateExtraFields() {
+  const t = document.getElementById('regTipo').value;
+  document.getElementById('extraCorrente').style.display = t === 'corrente' ? 'block' : 'none';
+  document.getElementById('extraSalario').style.display  = t === 'salario'  ? 'block' : 'none';
+  document.getElementById('extraPoupanca').style.display = t === 'poupanca' ? 'block' : 'none';
+}
+updateExtraFields();
+
+// ═══════════════════════════════════════════
+//  LOGIN
+// ═══════════════════════════════════════════
+async function doLogin() {
+  const conta = parseInt(document.getElementById('loginConta').value);
+  const senha = document.getElementById('loginSenha').value;
+  if (!conta || !senha) { alert$('loginAlert', 'Preencha conta e senha.'); return; }
+
+  loading('btnLogin', true, 'Entrando...');
+  clearAlert('loginAlert');
+  try {
+    const { ok, data } = await POST('/login', { conta, senha });
+    if (!ok) { alert$('loginAlert', data.erro || 'Erro ao entrar.'); return; }
+    S = { ...data, senha }; // senha fica em memória para chamadas futuras
+    enterApp();
+  } catch {
+    alert$('loginAlert', 'Servidor inacessível. Certifique-se de que o Servidor.java está rodando na porta 8080.');
+  } finally { loading('btnLogin', false); }
+}
+
+// ═══════════════════════════════════════════
+//  CADASTRAR
+// ═══════════════════════════════════════════
+async function doCadastrar() {
+  const tipo = document.getElementById('regTipo').value;
+  const body = {
+    nome: document.getElementById('regNome').value.trim(),
+    cpf:  document.getElementById('regCPF').value.trim(),
+    nascimento: document.getElementById('regNasc').value,
+    escolaridade: document.getElementById('regEsc').value,
+    estadoCivil: document.getElementById('regEC').value,
+    tipoConta: tipo,
+    numConta: parseInt(document.getElementById('regNumConta').value) || 0,
+    saldo:    parseFloat(document.getElementById('regSaldo').value) || 0,
+    senha:    document.getElementById('regSenha').value,
+    limiteCheque: parseFloat(document.getElementById('regLimiteCheque').value) || 500,
+    limiteSaque:  parseFloat(document.getElementById('regLimiteSaque').value) || 1000,
+    limiteTransf: parseFloat(document.getElementById('regLimiteTransf').value) || 2000,
+    rendimento:   parseFloat(document.getElementById('regRendimento').value) || 0.5,
+  };
+
+  if (!body.nome || !body.cpf || !body.senha) { alert$('regAlert', 'Nome, CPF e senha são obrigatórios.'); return; }
+  if (!body.numConta) { alert$('regAlert', 'Informe um número de conta.'); return; }
+  if (body.senha.length < 4) { alert$('regAlert', 'Senha deve ter ao menos 4 caracteres.'); return; }
+
+  loading('btnRegister', true, 'Criando conta...');
+  clearAlert('regAlert');
+  try {
+    const { ok, data } = await POST('/cadastrar', body);
+    if (!ok) { alert$('regAlert', data.erro || 'Erro ao cadastrar.'); return; }
+    alert$('regAlert', `Conta ${body.numConta} criada com sucesso! Redirecionando...`, 'success');
+    setTimeout(() => { switchMode('login'); document.getElementById('loginConta').value = body.numConta; }, 1600);
+  } catch {
+    alert$('regAlert', 'Servidor inacessível.');
+  } finally { loading('btnRegister', false); }
+}
+
+// ═══════════════════════════════════════════
+//  ENTRAR / SAIR
+// ═══════════════════════════════════════════
+function enterApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'flex';
+  updateSidebar();
+  renderDashboard();
+  updateClock();
+  setInterval(updateClock, 1000);
+}
+
+function doLogout() {
+  S = null;
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginConta').value = '';
+  document.getElementById('loginSenha').value = '';
+  clearAlert('loginAlert');
+}
+
+function updateClock() {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    n.toLocaleDateString('pt-BR') + ' · ' + n.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
+// ═══════════════════════════════════════════
+//  NAVEGAÇÃO
+// ═══════════════════════════════════════════
+const TITLES = { dashboard:'Dashboard', extrato:'Extrato', deposito:'Depósito', saque:'Saque', pagamento:'Pagamento', perfil:'Meu Perfil', clientes:'Clientes' };
+
+document.querySelectorAll('.nav-item[data-screen]').forEach(el => {
+  el.addEventListener('click', () => navTo(el.dataset.screen, el));
+});
+
+function navTo(id, el) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const target = el || document.querySelector(`[data-screen="${id}"]`);
+  if (target) target.classList.add('active');
+  document.getElementById('pageTitle').textContent = TITLES[id] || id;
+
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'extrato')   loadTransacoes('extratoTx', 999);
+  if (id === 'perfil')    renderPerfil();
+  if (id === 'clientes')  loadClientes();
+}
+
+function updateSidebar() {
+  if (!S) return;
+  document.getElementById('sbName').textContent  = S.nome.split(' ')[0];
+  document.getElementById('sbCPF').textContent   = S.cpf;
+  document.getElementById('sbConta').textContent = 'Conta ' + S.conta;
+}
+
+// ═══════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════
+async function renderDashboard() {
+  if (!S) return;
+  // Busca saldo atualizado do servidor
+  try {
+    const { ok, data } = await GET('/saldo', { conta: S.conta, senha: S.senha });
+    if (ok) S.saldo = data.saldo;
+  } catch {}
+  document.getElementById('dashSaldo').textContent = R$(S.saldo ?? 0);
+  document.getElementById('dashTipo').textContent  = 'Conta ' + S.tipo + ' — Ag. 1001';
+  loadTransacoes('dashTx', 5);
+}
+
+// ═══════════════════════════════════════════
+//  TRANSAÇÕES (EXTRATO)
+// ═══════════════════════════════════════════
+async function loadTransacoes(tbodyId, limit) {
+  if (!S) return;
+  const tbody = document.getElementById(tbodyId);
+  tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Carregando...</td></tr>';
+  try {
+    const { ok, data } = await GET('/transacoes', { conta: S.conta, senha: S.senha });
+    if (!ok || !Array.isArray(data) || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhuma transação registrada.</td></tr>';
+      return;
+    }
+    const rows = data.slice(0, limit);
+    tbody.innerHTML = rows.map(t => {
+      const isEntrada = t.tipo === 'Deposito';
+      const cls   = isEntrada ? 'amount-pos' : 'amount-neg';
+      const badge = isEntrada ? 'badge-green' : t.tipo === 'ConsultaSaldo' ? 'badge-blue' : 'badge-red';
+      const sinal = isEntrada ? '+' : t.valor === 0 ? '' : '-';
+      return `<tr>
+        <td>${t.data}</td>
+        <td><span class="badge ${badge}">${t.tipo}</span></td>
+        <td class="${cls}">${sinal}${R$(Math.abs(t.valor))}</td>
+        <td style="font-family:var(--sans)">${t.canal}</td>
+      </tr>`;
+    }).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Erro ao carregar transações.</td></tr>';
+  }
+}
+
+// ═══════════════════════════════════════════
+//  OPERAÇÕES
+// ═══════════════════════════════════════════
+async function doDeposito() {
+  const valor = parseFloat(document.getElementById('depositoValor').value);
+  if (!valor || valor <= 0) { alert$('depositoAlert', 'Informe um valor válido.'); return; }
+  loading('btnDeposito', true, 'Processando...');
+  clearAlert('depositoAlert');
+  try {
+    const { ok, data } = await POST('/deposito', { conta: S.conta, senha: S.senha, valor });
+    if (!ok) { alert$('depositoAlert', data.erro || 'Erro.'); return; }
+    S.saldo = data.saldo;
+    document.getElementById('depositoValor').value = '';
+    alert$('depositoAlert', `Depósito de ${R$(valor)} realizado! Novo saldo: ${R$(data.saldo)}`, 'success');
+    toast('✓ Depósito realizado com sucesso!');
+  } catch { alert$('depositoAlert', 'Erro de comunicação com o servidor.'); }
+  finally { loading('btnDeposito', false); }
+}
+
+async function doSaque() {
+  const valor = parseFloat(document.getElementById('saqueValor').value);
+  if (!valor || valor <= 0) { alert$('saqueAlert', 'Informe um valor válido.'); return; }
+  loading('btnSaque', true, 'Processando...');
+  clearAlert('saqueAlert');
+  try {
+    const { ok, data } = await POST('/saque', { conta: S.conta, senha: S.senha, valor });
+    if (!ok) { alert$('saqueAlert', data.erro || 'Erro.'); return; }
+    S.saldo = data.saldo;
+    document.getElementById('saqueValor').value = '';
+    alert$('saqueAlert', `Saque de ${R$(valor)} realizado! Novo saldo: ${R$(data.saldo)}`, 'success');
+    toast('✓ Saque realizado com sucesso!');
+  } catch { alert$('saqueAlert', 'Erro de comunicação com o servidor.'); }
+  finally { loading('btnSaque', false); }
+}
+
+async function doPagamento() {
+  const valor = parseFloat(document.getElementById('pagValor').value);
+  if (!valor || valor <= 0) { alert$('pagAlert', 'Informe um valor válido.'); return; }
+  loading('btnPagamento', true, 'Processando...');
+  clearAlert('pagAlert');
+  try {
+    const { ok, data } = await POST('/pagamento', { conta: S.conta, senha: S.senha, valor });
+    if (!ok) { alert$('pagAlert', data.erro || 'Erro.'); return; }
+    S.saldo = data.saldo;
+    document.getElementById('pagValor').value = '';
+    document.getElementById('pagDesc').value  = '';
+    alert$('pagAlert', `Pagamento de ${R$(valor)} efetuado! Novo saldo: ${R$(data.saldo)}`, 'success');
+    toast('✓ Pagamento efetuado com sucesso!');
+  } catch { alert$('pagAlert', 'Erro de comunicação com o servidor.'); }
+  finally { loading('btnPagamento', false); }
+}
+
+// ═══════════════════════════════════════════
+//  PERFIL
+// ═══════════════════════════════════════════
+async function renderPerfil() {
+  if (!S) return;
+  try {
+    const { ok, data } = await GET('/saldo', { conta: S.conta, senha: S.senha });
+    if (ok) S.saldo = data.saldo;
+  } catch {}
+
+  document.getElementById('pNome').textContent    = S.nome;
+  document.getElementById('pCPF').textContent     = S.cpf;
+  document.getElementById('pTipo').textContent    = S.tipo;
+  document.getElementById('pAbertura').textContent= S.abertura || '—';
+  document.getElementById('pConta').textContent   = S.conta;
+  document.getElementById('pSaldo').textContent   = R$(S.saldo ?? 0);
+  document.getElementById('pStatus').innerHTML    = S.status
+    ? '<span class="badge badge-green">Ativa</span>'
+    : '<span class="badge badge-red">Inativa</span>';
+
+  const extras = {
+    Corrente: ['Limite Cheque', R$(S.limiteCheque ?? 0)],
+    Poupança: ['Rendimento',    (S.rendimento ?? 0) + '% a.m.'],
+    Salario:  ['Limite Saque',  R$(S.limiteSaque ?? 0)],
+  };
+  const e = extras[S.tipo] || ['—', '—'];
+  document.getElementById('pExtraLbl').textContent = e[0];
+  document.getElementById('pExtraVal').textContent = e[1];
+}
+
+async function doAlterarSenha() {
+  const atual = document.getElementById('senhaAtual').value;
+  const nova  = document.getElementById('senhaNova').value;
+  if (!atual || !nova) { alert$('senhaAlert', 'Preencha os dois campos.'); return; }
+  if (nova.length < 4) { alert$('senhaAlert', 'Nova senha muito curta (mín. 4 caracteres).'); return; }
+  loading('btnSenha', true, 'Alterando...');
+  clearAlert('senhaAlert');
+  try {
+    const { ok, data } = await POST('/alterar-senha', { conta: S.conta, senha: atual, novaSenha: nova });
+    if (!ok) { alert$('senhaAlert', data.erro || 'Erro ao alterar senha.'); return; }
+    S.senha = nova; // atualiza em memória
+    document.getElementById('senhaAtual').value = '';
+    document.getElementById('senhaNova').value  = '';
+    alert$('senhaAlert', 'Senha alterada com sucesso!', 'success');
+  } catch { alert$('senhaAlert', 'Erro de comunicação com o servidor.'); }
+  finally { loading('btnSenha', false); }
+}
+
+// ═══════════════════════════════════════════
+//  CLIENTES
+// ═══════════════════════════════════════════
+async function loadClientes() {
+  const tbody = document.getElementById('clientesTx');
+  tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Carregando...</td></tr>';
+  try {
+    const { ok, data } = await GET('/clientes');
+    if (!ok || !data.length) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhum cliente cadastrado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(c => {
+      const eu = c.conta === S?.conta;
+      return `<tr>
+        <td style="font-family:var(--sans)">${c.nome}${eu ? ' <span class="badge badge-green">você</span>' : ''}</td>
+        <td>${c.conta}</td>
+        <td>${c.tipo}</td>
+      </tr>`;
+    }).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Erro ao carregar.</td></tr>';
+  }
+}
+</script>
+</body>
+</html>
